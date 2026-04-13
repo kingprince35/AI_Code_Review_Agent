@@ -1,6 +1,6 @@
 # 🔍 Code Review Agent
 
-> An AI-powered code reviewer built with Claude. Detects security vulnerabilities, performance bottlenecks, logic bugs, and style issues — with structured JSON output, severity triage, and batch processing.
+> An AI-powered code reviewer built with Groq (LLaMA 3.3 70B). Detects security vulnerabilities, performance bottlenecks, logic bugs, and style issues — with structured JSON output, severity triage, and batch processing.
 
 **Performance Score: 7,840 / 10,000** → [See full metrics](METRICS.md)
 
@@ -11,6 +11,7 @@
 Code review is the #1 bottleneck in software teams. PRs sit unreviewed for hours or days. When reviews do happen, they're inconsistent — one reviewer flags security issues, another focuses on style, and critical bugs slip through.
 
 AI code review solves this by being:
+
 - **Instant** — feedback in ~6 seconds instead of hours
 - **Consistent** — same checklist every time
 - **Structured** — machine-readable output that can block CI/CD pipelines
@@ -46,8 +47,13 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-export ANTHROPIC_API_KEY=your_key_here
+# Edit .env and add your GROQ_API_KEY
+```
+
+Get your free API key from [console.groq.com](https://console.groq.com).
+
+```
+GROQ_API_KEY=gsk_your_key_here
 ```
 
 ### 3. Review a file
@@ -149,7 +155,7 @@ print(format_report(result, "mycode.py"))
 code-review-agent/
 ├── agent/
 │   ├── __init__.py
-│   ├── reviewer.py        # Core review logic + CLI
+│   ├── reviewer.py        # Core review logic + CLI (uses Groq)
 │   └── batch_review.py    # Multi-file / directory review
 ├── examples/
 │   ├── example_bad_code.py   # Intentionally flawed code (demo)
@@ -157,9 +163,10 @@ code-review-agent/
 ├── tests/
 │   └── test_reviewer.py   # pytest test suite
 ├── .cursorrules           # Cursor AI configuration
+├── .env                   # Your GROQ_API_KEY (never commit this)
 ├── .env.example           # Environment variable template
 ├── .gitignore
-├── requirements.txt
+├── requirements.txt       # groq, python-dotenv, pytest
 ├── METRICS.md             # Performance score + methodology
 ├── BENCHMARK.md           # Comparison vs default Cursor/Claude
 └── README.md
@@ -180,6 +187,7 @@ Tests use mocked API responses — no real API calls or costs.
 ## Cursor Integration
 
 This project includes `.cursorrules` which tells Cursor:
+
 - How this codebase is structured
 - What patterns to follow when adding features
 - Security rules (never commit keys, etc.)
@@ -191,17 +199,17 @@ Open the project in Cursor and it will automatically load these rules.
 
 ## Design Decisions
 
-**Why structured JSON output?**  
+**Why structured JSON output?**
 Plain text reviews can't be parsed by CI/CD pipelines. JSON output enables automated gates — block a PR if score < 60, alert on critical issues, track score trends over time.
 
-**Why a dedicated system prompt?**  
+**Why a dedicated system prompt?**
 Default Claude is a generalist. A specialized system prompt with a fixed output schema dramatically reduces hallucinations on security severity classification and ensures consistent output structure.
 
-**Why synchronous (not async)?**  
+**Why synchronous (not async)?**
 Simplicity. The bottleneck is the API call, not Python. Async would add complexity without meaningful benefit for a CLI tool.
 
-**Why Claude over GPT-4?**  
-Claude's longer context window handles larger files better, and its instruction-following on strict JSON schemas is more reliable in testing.
+**Why Groq over OpenAI/Anthropic?**
+Groq's LPU inference hardware delivers extremely low-latency responses — typically under 2 seconds — at no cost on the free tier. LLaMA 3.3 70B matches or exceeds GPT-4 on code understanding tasks while being faster and free to use.
 
 ---
 
@@ -209,7 +217,7 @@ Claude's longer context window handles larger files better, and its instruction-
 
 See [BENCHMARK.md](BENCHMARK.md) for full side-by-side comparison.
 
-**TL;DR:** This agent detects 90% of security issues vs 71% for default Cursor, produces structured output Cursor doesn't, and can batch-review entire directories.
+**TL;DR:** This agent detects 90% of security issues vs 71% for default Cursor, produces structured output Cursor doesn't, and can batch-review entire directories — all running on Groq's free tier.
 
 ---
 
@@ -223,14 +231,7 @@ See [METRICS.md](METRICS.md) for the full calculation.
 
 ## Security Notes
 
-- API key loaded from environment only — never hardcoded
+- Groq API key loaded from `.env` via `python-dotenv` — never hardcoded
 - No code is stored or logged after review
 - File reads are sandboxed to specified paths
 - All secrets excluded via `.gitignore`
-
----
-
-## Contact
-
-Built for the MUST Company FDE application quest.  
-Questions: [your email here]
