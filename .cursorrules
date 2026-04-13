@@ -1,0 +1,62 @@
+# Code Review Agent - Cursor Rules
+# This configures Cursor AI to assist with this codebase effectively
+
+## Project Context
+This is an AI-powered code review agent built with Python and the Anthropic Claude API.
+It specializes in detecting security vulnerabilities, performance issues, logic bugs, and style problems.
+
+## Core Rules
+
+### Code Style
+- Use Python type hints on all function signatures
+- Write docstrings for every function (Google style)
+- Keep functions under 50 lines; extract helpers when needed
+- Use f-strings for string formatting
+- Prefer pathlib.Path over os.path
+
+### Architecture Principles
+- Agent logic lives in agent/reviewer.py
+- Batch processing lives in agent/batch_review.py
+- All API calls go through the `client` singleton in reviewer.py
+- Never hardcode API keys — always use os.environ
+- Structured JSON output from Claude, always validated before returning
+
+### When Adding Features
+- New review categories (e.g., accessibility, test coverage) → add to SYSTEM_PROMPT categories
+- New output formats → add to format_report() or create new formatter
+- New language support → extend ext_map in review_file()
+- Performance improvements → look at batch_review.py max_workers
+
+### Testing
+- All test files go in tests/
+- Use pytest
+- Mock Anthropic API calls in tests — never make real API calls in tests
+- Run: pytest tests/ -v
+
+### Security
+- NEVER commit .env files
+- NEVER log full code content
+- NEVER print API keys or tokens
+- Always sanitize file paths before reading
+
+### Common Patterns in This Codebase
+
+# Calling the review agent:
+from agent.reviewer import review_file, review_code
+result = review_file("path/to/code.py")
+result = review_code(code_string, language="python", context="Django view")
+
+# The result is always a dict with keys:
+# summary, score, issues, strengths, metrics
+
+### Anthropic API Usage
+- Model: claude-opus-4-5
+- Max tokens: 2048 for reviews
+- Always parse JSON from response.content[0].text
+- Strip markdown fences before JSON.loads()
+
+### DO NOT
+- Do not use async/await (keep sync for simplicity)
+- Do not store review history to disk without user consent
+- Do not send full file contents larger than 100KB to the API
+- Do not modify the JSON schema returned by the agent without updating format_report()
